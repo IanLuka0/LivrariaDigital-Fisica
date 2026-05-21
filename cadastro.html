@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="index.css">
+ <script src="index.js"> </script>
+ <!--pagina de cadastro -->
+
+<head>
+    <title>
+        Cadastro
+    </title>
+</head>
+
+<body>
+    
+<div class="container-login">
+        <h2>Criar uma Conta</h2>
+        <p>Cadastre-se para comprar seus livros favoritos nos formatos físico ou digital.</p>
+
+        <!-- form de cadastro -->
+        <form id="form-cadastro">
+            <div class="grupo-input">
+                <label for="nome">Nome Completo:</label>
+                <input type="text" id="nome" placeholder="Digite seu nome" required>
+            </div>
+
+            <div class="grupo-input">
+                <label for="email">E-mail:</label>
+                <input type="email" id="email" placeholder="Digite seu e-mail" required>
+            </div>
+
+            <div class="grupo-input">
+                <label for="senha">Senha:</label>
+                <input type="password" id="senha" placeholder="Crie uma senha" required>
+            </div>
+
+            <div class="grupo-input">
+                <label for="confirma-senha">Confirmar Senha:</label>
+                <input type="password" id="confirma-senha" placeholder="Repita a senha" required>
+            </div>
+
+            <!-- botão -->
+            <button type="submit" id="btn-entrar">Cadastrar</button>
+        </form>
+
+        <!-- link para voltar ao login -->
+        <div class="rodape-login">
+            <p>Já tem uma conta?</p>
+            <a href="index.html" class="link-cadastro">Faça login aqui!</a>
+        </div>
+    </div>
+    
+</body>
+
+</html>

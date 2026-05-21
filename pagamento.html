@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="index.css">
+ <script src="index.js"> </script>
+ <!--pagina do pagamento -->
+
+<head>
+    <title>
+    Fechar Compra
+    </title>
+</head>
+
+<body>
+    <body class="fundo-loja">
+
+    <header class="cabecalho-loja">
+        <div class="logo"> Pagamento </div>
+        <div class="menu-usuario">
+            <a href="livros.html" style="color: white; text-decoration: none; font-weight: 600;">← Voltar à Vitrine</a>
+        </div>
+    </header>
+
+    <main class="container-vitrine">
+        <h2 class="titulo-secao">Seu carrinho de compras</h2>
+
+            <div class="container-checkout">
+            <div>
+                <!-- alerta de duplicidad -->
+                <div id="alerta-duplicado" class="alerta-aviso" style="display: none;">
+                    ⚠️ Atenção: Você adicionou o mesmo livro mais de uma vez no carrinho. Certifique-se de que não foi um erro.
+                </div>
+
+                <!-- lista de livros adicionados -->
+                <div id="lista-carrinho">
+                    <p class="carrinho-vazio">Seu carrinho está vazio.</p>
+                </div>
+            </div>
+
+            <!-- resumo dos valores -->
+            <div class="resumo-total">
+                <h3>Resumo do Pedido</h3>
+                <div class="linha-total">
+                    <span>Total a pagar:</span>
+                    <span id="valor-total">R$ 0,00</span>
+                </div>
+                <button id="btn-finalizar" class="btn-comprar">Finalizar Compra.</button>
+            </div>
+        </div>
+    </main>
+    
+</body>
+
+
+</html>
