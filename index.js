@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // CAMADA DE INFRAESTRUTURA (LocalStorage e Google Books API)
+    // CAMADA DE INFRAESTRUTURA (LocalStorage e Open Library API)
     const CarrinhoRepository = {
         salvar(carrinho) {
             localStorage.setItem("itensCarrinho", JSON.stringify(carrinho.obterItens()));
@@ -71,34 +71,34 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-// Serviço para conectar e buscar dados vivos na API Open Library (Sem necessidade de Key)
-    const LivroService = {
-        async buscarLivrosDeLiteratura() {
+    // Serviço de Infraestrutura para conectar com a API externa da Open Library
+    const OpenLibraryService = {
+        async buscarDadosDaApi(termoBusca) {
             try {
-                // Busca livros populares em português
-                const resposta = await fetch("https://openlibrary.org/search.json?q=literatura+brasileira&limit=12");
+                // Formata o texto para a URL da API
+                const query = encodeURIComponent(termoBusca);
+                const resposta = await fetch(`https://openlibrary.org/search.json?q=${query}&limit=12`);
                 const dados = await resposta.json();
 
                 if (!dados.docs) return [];
 
-                // Mapeia os dados brutos e retorna instâncias da entidade pura Livro
+                // Transforma o JSON bruto da API em Objetos de Domínio da classe Livro
                 return dados.docs.map((item, index) => {
                     const titulo = item.title || "Título Indisponível";
                     const autor = item.author_name ? item.author_name.join(", ") : "Autor Desconhecido";
                     
-                    // Monta a imagem da capa usando o ID que a própria API fornece
+                    // Se o livro tiver ID de capa, monta a URL, senão usa uma imagem padrão
                     const imagem = item.cover_i 
                         ? `https://covers.openlibrary.org/b/id/${item.cover_i}-M.jpg` 
                         : "https://via.placeholder.com/200x300?text=Sem+Capa";
                     
-                    // Lógica para simular preços baseados nos títulos
-                    const precoBase = 20.00 + (titulo.length % 30); 
+                    // Como APIs públicas de catálogo não têm preço, geramos um valor simulado estável
+                    const precoBase = 24.90 + (titulo.length % 35);
 
                     return new Livro(index + 1, titulo, autor, precoBase, imagem);
                 });
             } catch (erro) {
-                console.error("Erro na API Open Library:", erro);
-                alert("Não foi possível carregar os livros externos. Verifique sua conexão.");
+                console.error("Erro ao conectar com a Open Library:", erro);
                 return [];
             }
         }
@@ -127,84 +127,117 @@ document.addEventListener("DOMContentLoaded", async () => {
         const elementoQtdCarrinho = document.getElementById("qtd-carrinho");
         if (elementoQtdCarrinho) elementoQtdCarrinho.innerText = carrinho.obterItens().length;
 
-        // chamada para popular o catálogo diretamente com dados da API
-        const catalogoLivros = await LivroService.buscarLivrosDeLiteratura();
+        // Armazena a lista atual exibida na tela para os botões funcionarem
+        let catalogoLivrosAtuais = [];
 
-        // livros
-        catalogoLivros.forEach(livro => {
-            const cartao = document.createElement("div");
-            cartao.classList.add("cartao-livro");
+        // Função interna para desenhar qualquer lista de livros na tela
+        function renderizarVitrine(livros) {
+            gradeLivros.innerHTML = "";
+            catalogoLivrosAtuais = livros;
 
-            cartao.innerHTML = `
-                <img src="${livro.imagem}" alt="Capa de ${livro.titulo}" class="capa-livro">
-                <h3 class="titulo-livro">${livro.titulo}</h3>
-                <p class="autor-livro">Por ${livro.autor}</p>
-                
-                <div class="opcoes-formato">
-                    <label><input type="radio" name="formato-livro${livro.id}" value="digital" checked> Digital</label>
-                    <label><input type="radio" name="formato-livro${livro.id}" value="fisico"> Físico</label>
-                </div>
+            if (livros.length === 0) {
+                gradeLivros.innerHTML = '<p class="aviso-erro">Nenhum livro encontrado para esta busca.</p>';
+                return;
+            }
 
-                <div class="preco-livro">
-                    <span>R$ ${livro.precoDigital.toFixed(2).replace(".", ",")}</span>
-                </div>
+            livros.forEach((livro, index) => {
+                const cartao = document.createElement("div");
+                cartao.classList.add("cartao-livro");
 
-                <div class="campo-endereco" id="endereco-livro${livro.id}" style="display: none;">
-                    <label for="cep-livro${livro.id}">CEP de Entrega (Frete +R$15):</label>
-                    <input type="text" id="cep-livro${livro.id}" placeholder="00000-000">
-                </div>
+                cartao.innerHTML = `
+                    <img src="${livro.imagem}" alt="Capa de ${livro.titulo}" class="capa-livro">
+                    <h3 class="titulo-livro">${livro.titulo}</h3>
+                    <p class="autor-livro">Por ${livro.autor}</p>
+                    
+                    <div class="opcoes-formato">
+                        <label><input type="radio" name="formato-livro${livro.id}" value="digital" checked> Digital</label>
+                        <label><input type="radio" name="formato-livro${livro.id}" value="fisico"> Físico</label>
+                    </div>
 
-                <button class="btn-comprar">Adicionar ao Carrinho</button>
-            `;
+                    <div class="preco-livro">
+                        <span>R$ ${livro.precoDigital.toFixed(2).replace(".", ",")}</span>
+                    </div>
 
-            gradeLivros.appendChild(cartao);
+                    <div class="campo-endereco" id="endereco-livro${livro.id}" style="display: none;">
+                        <label for="cep-livro${livro.id}">CEP de Entrega (Frete +R$15):</label>
+                        <input type="text" id="cep-livro${livro.id}" placeholder="00000-000">
+                    </div>
 
-           
-            const radios = cartao.querySelectorAll(`input[name="formato-livro${livro.id}"]`);
-            const campoEndereco = cartao.querySelector(`#endereco-livro${livro.id}`);
-            const elementoPreco = cartao.querySelector(".preco-livro span");
+                    <button class="btn-comprar" data-index="${index}">Adicionar ao Carrinho</button>
+                `;
 
-            radios.forEach(radio => {
-                radio.addEventListener("change", (e) => {
-                    if (e.target.value === "fisico") {
-                        campoEndereco.style.display = "block";
-                        
-                        elementoPreco.innerText = `R$ ${livro.calcularPrecoFisico().toFixed(2).replace(".", ",")}`;
-                    } else {
-                        campoEndereco.style.display = "none";
-                        elementoPreco.innerText = `R$ ${livro.precoDigital.toFixed(2).replace(".", ",")}`;
-                    }
+                gradeLivros.appendChild(cartao);
+
+                const radios = cartao.querySelectorAll(`input[name="formato-livro${livro.id}"]`);
+                const campoEndereco = cartao.querySelector(`#endereco-livro${livro.id}`);
+                const elementoPreco = cartao.querySelector(".preco-livro span");
+
+                radios.forEach(radio => {
+                    radio.addEventListener("change", (e) => {
+                        if (e.target.value === "fisico") {
+                            campoEndereco.style.display = "block";
+                            elementoPreco.innerText = `R$ ${livro.calcularPrecoFisico().toFixed(2).replace(".", ",")}`;
+                        } else {
+                            campoEndereco.style.display = "none";
+                            elementoPreco.innerText = `R$ ${livro.precoDigital.toFixed(2).replace(".", ",")}`;
+                        }
+                    });
                 });
             });
-        });
 
-        // botões de compra da interface
-        const botoesComprar = document.querySelectorAll(".btn-comprar");
-        botoesComprar.forEach((btn, index) => {
-            btn.addEventListener("click", () => {
-                const livro = catalogoLivros[index];
-                const cartao = btn.closest(".cartao-livro");
-                const formatoEscolhido = cartao.querySelector(`input[name="formato-livro${livro.id}"]:checked`).value;
-                const precoAtual = cartao.querySelector(".preco-livro span").innerText;
-                
-                let cep = "";
-                if (formatoEscolhido === "fisico") {
-                    cep = cartao.querySelector(`#cep-livro${livro.id}`).value.trim();
-                    if (cep === "") { alert("Por favor, preencha o CEP para a entrega física."); return; }
-                }
+            // Configuração dinâmica do clique de compra
+            const botoesComprar = gradeLivros.querySelectorAll(".btn-comprar");
+            botoesComprar.forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const idx = parseInt(btn.getAttribute("data-index"));
+                    const livro = catalogoLivrosAtuais[idx];
+                    const cartao = btn.closest(".cartao-livro");
+                    const formatoEscolhido = cartao.querySelector(`input[name="formato-livro${livro.id}"]:checked`).value;
+                    const precoAtual = cartao.querySelector(".preco-livro span").innerText;
+                    
+                    let cep = "";
+                    if (formatoEscolhido === "fisico") {
+                        cep = cartao.querySelector(`#cep-livro${livro.id}`).value.trim();
+                        if (cep === "") { alert("Por favor, preencha o CEP para a entrega física."); return; }
+                    }
 
-                // cria o item
-                const itemNovo = { titulo: livro.titulo, formato: formatoEscolhido.toUpperCase(), preco: precoAtual, cep: cep };
-                
-                // manda o domínio executar a ação
-                carrinho.adicionarItem(itemNovo);
-                // salva o novo estado usando o repositório da infraestrutura
-                CarrinhoRepository.salvar(carrinho);
+                    const itemNovo = { titulo: livro.titulo, formato: formatoEscolhido.toUpperCase(), preco: precoAtual, cep: cep };
+                    
+                    carrinho.adicionarItem(itemNovo);
+                    CarrinhoRepository.salvar(carrinho);
 
-                if (elementoQtdCarrinho) elementoQtdCarrinho.innerText = carrinho.obterItens().length;
-                alert(`"${livro.titulo}" adicionado ao carrinho!`);
+                    if (elementoQtdCarrinho) elementoQtdCarrinho.innerText = carrinho.obterItens().length;
+                    alert(`"${livro.titulo}" adicionado ao carrinho!`);
+                });
             });
-        });
+        }
+
+        // Carga inicial: Busca e mostra os 12 livros mais vendidos/famosos de literatura brasileira
+        gradeLivros.innerHTML = '<p class="carregando">Carregando os mais vendidos da API...</p>';
+        const livrosIniciais = await OpenLibraryService.buscarDadosDaApi("literatura brasileira");
+        renderizarVitrine(livrosIniciais);
+
+        // Ação da Barra de Pesquisa (UI capturando eventos e acionando o Serviço)
+        const inputBusca = document.getElementById("input-busca");
+        const btnBusca = document.getElementById("btn-busca");
+
+        if (btnBusca && inputBusca) {
+            async function executarPesquisa() {
+                const termo = inputBusca.value.trim();
+                if (termo === "") {
+                    alert("Digite algo para pesquisar!");
+                    return;
+                }
+                gradeLivros.innerHTML = '<p class="carregando">Buscando livros na API...</p>';
+                const livrosFiltrados = await OpenLibraryService.buscarDadosDaApi(termo);
+                renderizarVitrine(livrosFiltrados);
+            }
+
+            btnBusca.addEventListener("click", executarPesquisa);
+            inputBusca.addEventListener("keypress", (e) => {
+                if (e.key === "Enter") executarPesquisa();
+            });
+        }
     }
 
     // renderização do pagamento: (pagamento.html) ---
@@ -212,7 +245,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (listaCarrinhoContainer) {
         
         function renderizarCheckout() {
-            // Busca o carrinho estruturado como Agregado através da Infraestrutura
             const carrinho = CarrinhoRepository.buscar();
             const elementoTotal = document.getElementById("valor-total");
             const alertaDuplicado = document.getElementById("alerta-duplicado");
@@ -242,7 +274,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 listaCarrinhoContainer.appendChild(divItem);
             });
 
-            // executa as regras de negócio do objeto de dominio
             if (alertaDuplicado) {
                 alertaDuplicado.style.display = carrinho.verificarDuplicidade() ? "block" : "none";
             }
@@ -250,16 +281,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 elementoTotal.innerText = `R$ ${carrinho.calcularTotal().toFixed(2).replace(".", ",")}`;
             }
 
-            // escuta a ação de exclusão na interface
             const botoesRemover = listaCarrinhoContainer.querySelectorAll(".btn-remover");
             botoesRemover.forEach(botao => {
                 botao.addEventListener("click", (e) => {
                     const indexParaRemover = parseInt(e.target.getAttribute("data-index"));
-                    
-                    // modifica o objeto de domínio e sincroniza na infraestrutura
                     carrinho.removerItem(indexParaRemover);
                     CarrinhoRepository.salvar(carrinho);
-                    
                     renderizarCheckout();
                 });
             });
@@ -280,9 +307,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-  
     // logica de cadastro login etc
-
     const formCadastro = document.getElementById("form-cadastro");
     if (formCadastro) {
         formCadastro.addEventListener("submit", (event) => {
