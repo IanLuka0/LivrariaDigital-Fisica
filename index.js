@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
 
     // CAMADA DE DOMÍNIO 
     
@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.titulo = titulo;
             this.autor = autor;
             this.precoDigital = precoDigital;
-            this.imagem = imagem; // <-- Adicionado aqui
+            this.imagem = imagem; 
         }
 
         calcularPrecoFisico() {
@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Carrinho (controla as regras de agrupamento, totais e duplicidades)
     class CarrinhoDeCompras {
         constructor(itensIniciais = []) {
-            this.itens = itensIniciais; // array de itens
+            this.itens = itensIniciais; 
         }
 
         adicionarItem(item) {
@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const titulosVistos = [];
             for (let item of this.itens) {
                 if (titulosVistos.includes(item.titulo)) {
-                    return true; // se encontrou duplicado
+                    return true; 
                 }
                 titulosVistos.push(item.titulo);
             }
@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // CAMADA DE INFRAESTRUTURA (LocalStorage)
+    // CAMADA DE INFRAESTRUTURA (LocalStorage e Google Books API)
     const CarrinhoRepository = {
         salvar(carrinho) {
             localStorage.setItem("itensCarrinho", JSON.stringify(carrinho.obterItens()));
@@ -64,32 +64,49 @@ document.addEventListener("DOMContentLoaded", () => {
         buscar() {
             const dados = localStorage.getItem("itensCarrinho");
             const itens = dados ? JSON.parse(dados) : [];
-            return new CarrinhoDeCompras(itens); // retorna
+            return new CarrinhoDeCompras(itens); 
         },
         limpar() {
             localStorage.removeItem("itensCarrinho");
         }
     };
 
+// Serviço para conectar e buscar dados vivos na API Open Library (Sem necessidade de Key)
+    const LivroService = {
+        async buscarLivrosDeLiteratura() {
+            try {
+                // Busca livros populares em português
+                const resposta = await fetch("https://openlibrary.org/search.json?q=literatura+brasileira&limit=12");
+                const dados = await resposta.json();
+
+                if (!dados.docs) return [];
+
+                // Mapeia os dados brutos e retorna instâncias da entidade pura Livro
+                return dados.docs.map((item, index) => {
+                    const titulo = item.title || "Título Indisponível";
+                    const autor = item.author_name ? item.author_name.join(", ") : "Autor Desconhecido";
+                    
+                    // Monta a imagem da capa usando o ID que a própria API fornece
+                    const imagem = item.cover_i 
+                        ? `https://covers.openlibrary.org/b/id/${item.cover_i}-M.jpg` 
+                        : "https://via.placeholder.com/200x300?text=Sem+Capa";
+                    
+                    // Lógica para simular preços baseados nos títulos
+                    const precoBase = 20.00 + (titulo.length % 30); 
+
+                    return new Livro(index + 1, titulo, autor, precoBase, imagem);
+                });
+            } catch (erro) {
+                console.error("Erro na API Open Library:", erro);
+                alert("Não foi possível carregar os livros externos. Verifique sua conexão.");
+                return [];
+            }
+        }
+    };
+
 
     // CAMADA DE INTERFACE & APRESENTAÇÃO: HTML e Eventos
     
-    // catálogo de entidades do domínio com referencia para pegar imagem.
-    const catalogoLivros = [
-        { id: 1, titulo: "Dom Casmurro", autor: "Machado de Assis", precoDigital: 29.90, imagem: "imgsite/dom.jpg" },
-        { id: 2, titulo: "Grande Sertão: Veredas", autor: "João Guimarães Rosa", precoDigital: 45.50, imagem: "imgsite/grandesertao.jpg" },
-        { id: 3, titulo: "O Cortiço", autor: "Aluísio Azevedo", precoDigital: 19.90, imagem: "imgsite/ocortico.jpg" },
-        { id: 4, titulo: "Capitães da Areia", "autor": "Jorge Amado", precoDigital: 34.90, imagem: "imgsite/areia.jpg" },
-        { id: 5, titulo: "Vidas Secas", autor: "Graciliano Ramos", precoDigital: 25.00, imagem: "imgsite/vidaseca.jpg" },
-        { id: 6, titulo: "A Hora da Estrela", autor: "Clarice Lispector", precoDigital: 22.80, imagem: "imgsite/estrela.jpg" },
-        { id: 7, titulo: "Quincas Borba", autor: "Machado de Assis", precoDigital: 24.50, imagem: "imgsite/borba.jpg" },
-        { id: 8, titulo: "Iracema", autor: "José de Alencar", precoDigital: 15.90, imagem: "imgsite/iracema.jpg" },
-        { id: 9, titulo: "O Alquimista", autor: "Paulo Coelho", precoDigital: 39.90, imagem: "imgsite/alquimista.jpg" },
-        { id: 10, titulo: "Triste Fim de Policarpo Quaresma", autor: "Lima Barreto", precoDigital: 21.00, imagem: "imgsite/triste.jpg" },
-        { id: 11, titulo: "Macunaíma", autor: "Mário de Andrade", precoDigital: 27.90, imagem: "imgsite/macunaima.jpg" },
-        { id: 12, titulo: "Auto da Compadecida", autor: "Ariano Suassuna", precoDigital: 32.00, imagem: "imgsite/compadecida.jpg" }
-    ].map(dados => new Livro(dados.id, dados.titulo, dados.autor, dados.precoDigital, dados.imagem));
-
     // renderização do (livros.html) 
     const gradeLivros = document.getElementById("grade-livros");
     if (gradeLivros) {
@@ -110,13 +127,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const elementoQtdCarrinho = document.getElementById("qtd-carrinho");
         if (elementoQtdCarrinho) elementoQtdCarrinho.innerText = carrinho.obterItens().length;
 
+        // chamada para popular o catálogo diretamente com dados da API
+        const catalogoLivros = await LivroService.buscarLivrosDeLiteratura();
+
         // livros
         catalogoLivros.forEach(livro => {
             const cartao = document.createElement("div");
             cartao.classList.add("cartao-livro");
 
             cartao.innerHTML = `
-                <img src="${livro.imagem}" alt="Capa de ${livro.titulo}" class="capa-livro">                <h3 class="titulo-livro">${livro.titulo}</h3>
+                <img src="${livro.imagem}" alt="Capa de ${livro.titulo}" class="capa-livro">
+                <h3 class="titulo-livro">${livro.titulo}</h3>
                 <p class="autor-livro">Por ${livro.autor}</p>
                 
                 <div class="opcoes-formato">
