@@ -331,12 +331,34 @@ document.addEventListener("DOMContentLoaded", () => {
         const btnFinalizar = document.getElementById("btn-finalizar");
         if (btnFinalizar) {
             btnFinalizar.addEventListener("click", () => {
-                const carrinho = CarrinhoRepository.buscar();
-                if (carrinho.obterItens().length === 0) { alert("Seu carrinho está vazio!"); return; }
-                
-                alert("Compra simulada com sucesso!");
-                CarrinhoRepository.limpar();
-                window.location.href = "livros.html";
+    const carrinho = CarrinhoRepository.buscar();
+    if (carrinho.obterItens().length === 0) { 
+        alert("Seu carrinho está vazio!"); 
+        return; 
+    }
+    
+    // --- NOVA LÓGICA DE HISTÓRICO ---
+    // 1. Pega o histórico que já existe ou cria um array vazio se for a primeira compra
+    const historicoAtual = JSON.parse(localStorage.getItem("historicoCompras")) || [];
+    
+    // 2. Cria o objeto da nova compra com os itens atuais e a data
+    const novaCompra = {
+        id: Date.now(), // Gera um ID único baseado no milissegundo atual
+        data: new Date().toLocaleDateString("pt-BR"),
+        total: `R$ ${carrinho.calcularTotal().toFixed(2).replace(".", ",")}`,
+        itens: carrinho.obterItens()
+    };
+    
+    // 3. Adiciona a nova compra no início do histórico (para a mais recente aparecer primeiro)
+    historicoAtual.unshift(novaCompra);
+    
+    // 4. Salva de volta no LocalStorage
+    localStorage.setItem("historicoCompras", JSON.stringify(historicoAtual));
+    // ---------------------------------
+
+    alert("Compra simulada com sucesso! Ela foi salva no seu histórico.");
+    CarrinhoRepository.limpar();
+    window.location.href = "historico.html"; 
             });
         }
     }

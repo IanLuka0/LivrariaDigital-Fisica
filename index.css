@@ -560,3 +560,43 @@ body.fundo-loja {
         text-align: center;
     }
 }
+
+/* Botão de Histórico Compacto e Alinhado à Esquerda */
+.link-historico-checkout {
+    display: inline-block;
+    text-align: left;
+    margin-top: 15px;
+    
+    /* 1. MUDE ESTES VALORES PARA AUMENTAR O TAMANHO DO BOTÃO */
+    padding: 12px 20px; /* O primeiro número aumenta a altura, o segundo aumenta a largura */
+    
+    background-color: #2372c2; 
+    color: #ffffff !important; 
+    text-decoration: none;
+    
+    /* 2. SE QUISER O TEXTO MAIOR, AUMENTE ESTE VALOR */
+    font-size: 15px; /* Ex: mude de 13px para 15px ou 16px */
+    
+    font-weight: bold;
+    border-radius: 6px;
+    border: none;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Garante que o container pai não centralize o botão */
+.resumo-total {
+    text-align: left; 
+}
+
+/* Efeitos de Hover e Clique mantidos */
+.link-historico-checkout:hover {
+    background-color: #1b5896; 
+    transform: translateY(-1px); /* Flutuação mais sutil condizente com o tamanho */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); 
+}
+
+.link-historico-checkout:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
