@@ -1,8 +1,8 @@
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
 
     // CAMADA DE DOMÍNIO 
     
-    // Livro (ID e atributos próprios)
+    // livro (ID e atributos próprios)
     class Livro {
         constructor(id, titulo, autor, precoDigital, imagem) {
             this.id = id;
@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // Carrinho (controla as regras de agrupamento, totais e duplicidades)
+    // carrinho (regras de agrupamento, totais e duplicidades)
     class CarrinhoDeCompras {
         constructor(itensIniciais = []) {
             this.itens = itensIniciais; 
@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return false;
         }
 
-        // Calcula o valor total com base nos preços textuais armazenados
+        // calcula o valor total com base nos preços textuais armazenados
         calcularTotal() {
             return this.itens.reduce((soma, item) => {
                 const valorNumerico = parseFloat(item.preco.replace("R$", "").replace(".", "").replace(",", "."));
@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // CAMADA DE INFRAESTRUTURA (LocalStorage e Open Library API)
+    // CAMADA DE INFRAESTRUTURA (LocalStorage e Serviço da API Open Library)
     const CarrinhoRepository = {
         salvar(carrinho) {
             localStorage.setItem("itensCarrinho", JSON.stringify(carrinho.obterItens()));
@@ -71,28 +71,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    // Serviço de Infraestrutura para conectar com a API externa da Open Library
+    // serviço de Infraestrutura para conectar com a internet APENAS quando o usuário pesquisar
     const OpenLibraryService = {
         async buscarDadosDaApi(termoBusca) {
             try {
-                // Formata o texto para a URL da API
                 const query = encodeURIComponent(termoBusca);
-                const resposta = await fetch(`https://openlibrary.org/search.json?q=${query}&limit=12`);
+                // busca enviando a lista de campos essenciais para garantir o retorno estável das capas e dados
+                const resposta = await fetch(`https://openlibrary.org/search.json?q=${query}&fields=key,title,author_name,cover_i&limit=12`);
                 const dados = await resposta.json();
 
                 if (!dados.docs) return [];
 
-                // Transforma o JSON bruto da API em Objetos de Domínio da classe Livro
                 return dados.docs.map((item, index) => {
                     const titulo = item.title || "Título Indisponível";
                     const autor = item.author_name ? item.author_name.join(", ") : "Autor Desconhecido";
-                    
-                    // Se o livro tiver ID de capa, monta a URL, senão usa uma imagem padrão
                     const imagem = item.cover_i 
                         ? `https://covers.openlibrary.org/b/id/${item.cover_i}-M.jpg` 
                         : "https://via.placeholder.com/200x300?text=Sem+Capa";
                     
-                    // Como APIs públicas de catálogo não têm preço, geramos um valor simulado estável
                     const precoBase = 24.90 + (titulo.length % 35);
 
                     return new Livro(index + 1, titulo, autor, precoBase, imagem);
@@ -105,8 +101,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
 
-    // CAMADA DE INTERFACE & APRESENTAÇÃO: HTML e Eventos
+    // CAMADA DE INTERFACE E APRESENTAÇÃO
     
+    // catálogo Offline de Clássicos Brasileiros 
+    const catalogoClassicosLocais = [
+        { id: 1, titulo: "Dom Casmurro", autor: "Machado de Assis", precoDigital: 29.90, imagem: "imgsite/dom.jpg" },
+        { id: 2, titulo: "Grande Sertão: Veredas", autor: "João Guimarães Rosa", precoDigital: 45.50, imagem: "imgsite/grandesertao.jpg" },
+        { id: 3, titulo: "O Cortiço", autor: "Aluísio Azevedo", precoDigital: 19.90, imagem: "imgsite/ocortico.jpg" },
+        { id: 4, titulo: "Capitães da Areia", autor: "Jorge Amado", precoDigital: 34.90, imagem: "imgsite/areia.jpg" },
+        { id: 5, titulo: "Vidas Secas", autor: "Graciliano Ramos", precoDigital: 25.00, imagem: "imgsite/vidaseca.jpg" },
+        { id: 6, titulo: "A Hora da Estrela", autor: "Clarice Lispector", precoDigital: 22.80, imagem: "imgsite/estrela.jpg" },
+        { id: 7, titulo: "Quincas Borba", autor: "Machado de Assis", precoDigital: 24.50, imagem: "imgsite/borba.jpg" },
+        { id: 8, titulo: "Iracema", autor: "José de Alencar", precoDigital: 15.90, imagem: "imgsite/iracema.jpg" },
+        { id: 9, titulo: "O Alquimista", autor: "Paulo Coelho", precoDigital: 39.90, imagem: "imgsite/alquimista.jpg" },
+        { id: 10, titulo: "Triste Fim de Policarpo Quaresma", autor: "Lima Barreto", precoDigital: 21.00, imagem: "imgsite/triste.jpg" },
+        { id: 11, titulo: "Macunaíma", autor: "Mário de Andrade", precoDigital: 27.90, imagem: "imgsite/macunaima.jpg" },
+        { id: 12, titulo: "Auto da Compadecida", autor: "Ariano Suassuna", precoDigital: 32.00, imagem: "imgsite/compadecida.jpg" }
+    ].map(dados => new Livro(dados.id, dados.titulo, dados.autor, dados.precoDigital, dados.imagem));
+
     // renderização do (livros.html) 
     const gradeLivros = document.getElementById("grade-livros");
     if (gradeLivros) {
@@ -127,10 +139,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const elementoQtdCarrinho = document.getElementById("qtd-carrinho");
         if (elementoQtdCarrinho) elementoQtdCarrinho.innerText = carrinho.obterItens().length;
 
-        // Armazena a lista atual exibida na tela para os botões funcionarem
+        // guarda a lista de livros que está visível no momento
         let catalogoLivrosAtuais = [];
 
-        // Função interna para desenhar qualquer lista de livros na tela
+        // desenhar os livros na tela de forma dinâmica
         function renderizarVitrine(livros) {
             gradeLivros.innerHTML = "";
             catalogoLivrosAtuais = livros;
@@ -185,7 +197,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             });
 
-            // Configuração dinâmica do clique de compra
             const botoesComprar = gradeLivros.querySelectorAll(".btn-comprar");
             botoesComprar.forEach(btn => {
                 btn.addEventListener("click", () => {
@@ -212,14 +223,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
 
-        // Carga inicial: Busca e mostra os 12 livros mais vendidos/famosos de literatura brasileira
-        gradeLivros.innerHTML = '<p class="carregando">Carregando os mais vendidos da API...</p>';
-        const livrosIniciais = await OpenLibraryService.buscarDadosDaApi("literatura brasileira");
-        renderizarVitrine(livrosIniciais);
+        // renderiza os livros locais offline
+        renderizarVitrine(catalogoClassicosLocais);
 
-        // Ação da Barra de Pesquisa (UI capturando eventos e acionando o Serviço)
+        // barra de pesquisa
         const inputBusca = document.getElementById("input-busca");
         const btnBusca = document.getElementById("btn-busca");
+        const tituloSecao = document.querySelector(".titulo-secao"); // Pega o h2 da seção para mudar dinamicamente
 
         if (btnBusca && inputBusca) {
             async function executarPesquisa() {
@@ -228,7 +238,31 @@ document.addEventListener("DOMContentLoaded", async () => {
                     alert("Digite algo para pesquisar!");
                     return;
                 }
-                gradeLivros.innerHTML = '<p class="carregando">Buscando livros na API...</p>';
+                
+                // atualiza o título principal da busca
+                if (tituloSecao) {
+                    tituloSecao.innerText = `Resultados para: "${termo}"`;
+                }
+
+                // localiza e oculta o h2 estático de clássicos e suas bordas/linhas horizontais (<hr>)
+                const todosH2 = document.querySelectorAll("h2");
+                todosH2.forEach(h2 => {
+                    if (h2.innerText.includes("Clássicos Brasileiros")) {
+                        h2.style.display = "none"; 
+                        
+                        // Oculta linhas divisórias adjacentes caso existam no HTML
+                        if (h2.nextElementSibling && h2.nextElementSibling.tagName === "HR") {
+                            h2.nextElementSibling.style.display = "none";
+                        }
+                        if (h2.previousElementSibling && h2.previousElementSibling.tagName === "HR") {
+                            h2.previousElementSibling.style.display = "none";
+                        }
+                    }
+                });
+
+                gradeLivros.innerHTML = '<p class="carregando">Buscando livros na API externa...</p>';
+                
+                // livros novos na internet
                 const livrosFiltrados = await OpenLibraryService.buscarDadosDaApi(termo);
                 renderizarVitrine(livrosFiltrados);
             }
