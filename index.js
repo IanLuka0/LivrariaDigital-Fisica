@@ -385,35 +385,86 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // cadastro, login etc. 
+// cadastro e login table supabase
+    
+    // fluxo de cadastro salvando na tabela comum do Supabase
     const formCadastro = document.getElementById("form-cadastro");
     if (formCadastro) {
-        formCadastro.addEventListener("submit", (event) => {
+        formCadastro.addEventListener("submit", async (event) => {
             event.preventDefault(); 
-            const nome = document.getElementById("nome").value;
-            const email = document.getElementById("email").value;
+            const nome = document.getElementById("nome").value.trim();
+            const email = document.getElementById("email").value.trim();
             const senha = document.getElementById("senha").value;
             const confirmaSenha = document.getElementById("confirma-senha").value;
             
-            if (senha !== confirmaSenha) { alert("As senhas não coincidem!"); return; }
-            localStorage.setItem("usuarioLivraria", JSON.stringify({ nome, email, senha }));
-            alert("Cadastro realizado!"); window.location.href = "index.html";
+            if (senha !== confirmaSenha) { 
+                alert("As senhas não coincidem!"); 
+                return; 
+            }
+
+            try {
+                // insere o novo usuário como uma linha comum na tabela 'usuarios'
+                const { data, error } = await supabaseClient
+                    .from('usuarios')
+                    .insert([{ nome: nome, email: email, senha: senha }]);
+
+                if (error) {
+                    console.error("Erro ao inserir usuário:", error);
+                    alert("Erro ao cadastrar no banco de dados.");
+                    return;
+                }
+
+                alert("Cadastro realizado com sucesso na tabela do Supabase!"); 
+                window.location.href = "index.html";
+
+            } catch (err) {
+                console.error("Erro de comunicação:", err);
+                alert("Não foi possível se conectar ao banco de dados.");
+            }
         });
     }
 
+    // fluxo de login validando direto na tabela comum do supabase
     const formLogin = document.getElementById("form-login");
     if (formLogin) {
-        formLogin.addEventListener("submit", (event) => {
+        formLogin.addEventListener("submit", async (event) => {
             event.preventDefault();
-            const emailDigitado = document.getElementById("email").value;
+            const emailDigitado = document.getElementById("email").value.trim();
             const senhaDigitada = document.getElementById("senha").value;
-            const dadosSalvos = localStorage.getItem("usuarioLivraria");
             
-            if (!dadosSalvos) { alert("Nenhum usuário cadastrado."); return; }
-            const usuario = JSON.parse(dadosSalvos);
-            if (emailDigitado === usuario.email && senhaDigitada === usuario.senha) {
-                alert(`Bem-vindo, ${usuario.nome}!`); window.location.href = "livros.html"; 
-            } else { alert("E-mail ou senha incorretos."); }
+            try {
+                // busca na tabela se existe alguém com esse email e senha
+                const { data: usuariosEncontrados, error } = await supabaseClient
+                    .from('usuarios')
+                    .select('*')
+                    .eq('email', emailDigitado)
+                    .eq('senha', senhaDigitada);
+
+                if (error) {
+                    console.error("Erro ao buscar usuário:", error);
+                    alert("Erro ao conectar ao banco de dados.");
+                    return;
+                }
+
+                if (!usuariosEncontrados || usuariosEncontrados.length === 0) {
+                    alert("E-mail ou senha incorretos.");
+                    return;
+                }
+
+                const usuario = usuariosEncontrados[0];
+
+                localStorage.setItem("usuarioLivraria", JSON.stringify({ 
+                    nome: usuario.nome, 
+                    email: usuario.email 
+                }));
+
+                alert(`Bem-vindo de volta, ${usuario.nome}!`); 
+                window.location.href = "livros.html"; 
+
+            } catch (err) {
+                console.error("Erro de comunicação:", err);
+                alert("Não foi possível conectar ao banco de dados.");
+            }
         });
     }
 });
