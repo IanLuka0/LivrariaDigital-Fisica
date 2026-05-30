@@ -1,12 +1,20 @@
-// configuração inicial do Supabase no index.js
-const SUPABASE_URL = "URL_AQUI";
-const SUPABASE_KEY = "CHAVE_ANON_AQUI";
-
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL = "https://qywyrjcbbxhthepxfdoh.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5d3lyamNiYnhodGhlcHhmZG9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODI5NDgsImV4cCI6MjA5NTY1ODk0OH0.gNxXCqvDSn8kKGjvJh67OCzqM92K-7Jjhq8IDacEzME";
+let supabaseClient; 
 
 document.addEventListener("DOMContentLoaded", () => {
+    // Inicialização segura usando o nome novo
+    try {
+        if (window.supabase) {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        }
+    } catch (e) {
+        console.error("A biblioteca do Supabase ainda não foi carregada corretamente.", e);
+    }
 
+    // ==========================================
     // CAMADA DE DOMÍNIO 
+    // ==========================================
     
     // livro (ID e atributos próprios)
     class Livro {
@@ -62,7 +70,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // CAMADA DE INFRAESTRUTURA (LocalStorage e Serviço da API Open Library)
+    // ==========================================
+    // CAMADA DE INFRAESTRUTURA
+    // ==========================================
     const CarrinhoRepository = {
         salvar(carrinho) {
             localStorage.setItem("itensCarrinho", JSON.stringify(carrinho.obterItens()));
@@ -82,7 +92,6 @@ document.addEventListener("DOMContentLoaded", () => {
         async buscarDadosDaApi(termoBusca) {
             try {
                 const query = encodeURIComponent(termoBusca);
-                // busca enviando a lista de campos essenciais para garantir o retorno estável das capas e dados
                 const resposta = await fetch(`https://openlibrary.org/search.json?q=${query}&fields=key,title,author_name,cover_i&limit=12`);
                 const dados = await resposta.json();
 
@@ -107,7 +116,9 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
 
+    // ==========================================
     // CAMADA DE INTERFACE E APRESENTAÇÃO
+    // ==========================================
     
     // catálogo Offline de Clássicos Brasileiros 
     const catalogoClassicosLocais = [
@@ -145,7 +156,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const elementoQtdCarrinho = document.getElementById("qtd-carrinho");
         if (elementoQtdCarrinho) elementoQtdCarrinho.innerText = carrinho.obterItens().length;
 
-        // guarda a lista de livros que está visível no momento
         let catalogoLivrosAtuais = [];
 
         // desenhar os livros na tela de forma dinâmica
@@ -190,7 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const campoEndereco = cartao.querySelector(`#endereco-livro${livro.id}`);
                 const elementoPreco = cartao.querySelector(".preco-livro span");
 
-                radios.forEach(radio => {
+                radiids = radios.forEach(radio => {
                     radio.addEventListener("change", (e) => {
                         if (e.target.value === "fisico") {
                             campoEndereco.style.display = "block";
@@ -229,13 +239,12 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        // renderiza os livros locais offline
         renderizarVitrine(catalogoClassicosLocais);
 
         // barra de pesquisa
         const inputBusca = document.getElementById("input-busca");
         const btnBusca = document.getElementById("btn-busca");
-        const tituloSecao = document.querySelector(".titulo-secao"); // Pega o h2 da seção para mudar dinamicamente
+        const tituloSecao = document.querySelector(".titulo-secao");
 
         if (btnBusca && inputBusca) {
             async function executarPesquisa() {
@@ -245,18 +254,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
                 
-                // atualiza o título principal da busca
                 if (tituloSecao) {
                     tituloSecao.innerText = `Resultados para: "${termo}"`;
                 }
 
-                // localiza e oculta o h2 estático de clássicos e suas bordas/linhas horizontais <hr>
                 const todosH2 = document.querySelectorAll("h2");
                 todosH2.forEach(h2 => {
                     if (h2.innerText.includes("Clássicos Brasileiros")) {
                         h2.style.display = "none"; 
-                        
-                        // Oculta linhas divisórias adjacentes caso existam no HTML
                         if (h2.nextElementSibling && h2.nextElementSibling.tagName === "HR") {
                             h2.nextElementSibling.style.display = "none";
                         }
@@ -268,7 +273,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 gradeLivros.innerHTML = '<p class="carregando">Buscando livros na API externa...</p>';
                 
-                // livros novos na internet
                 const livrosFiltrados = await OpenLibraryService.buscarDadosDaApi(termo);
                 renderizarVitrine(livrosFiltrados);
             }
@@ -334,39 +338,54 @@ document.addEventListener("DOMContentLoaded", () => {
 
         renderizarCheckout();
 
+        // Integrado ao Supabase com async/await
         const btnFinalizar = document.getElementById("btn-finalizar");
         if (btnFinalizar) {
-            btnFinalizar.addEventListener("click", () => {
-    const carrinho = CarrinhoRepository.buscar();
-    if (carrinho.obterItens().length === 0) { 
-        alert("Seu carrinho está vazio!"); 
-        return; 
-    }
-    
-    // LÓGICA DE HISTÓRICO ---
-    const historicoAtual = JSON.parse(localStorage.getItem("historicoCompras")) || [];
-    
-    const novaCompra = {
-        id: Date.now(), 
-        data: new Date().toLocaleDateString("pt-BR"),
-        total: `R$ ${carrinho.calcularTotal().toFixed(2).replace(".", ",")}`,
-        itens: carrinho.obterItens()
-    };
-    
-    historicoAtual.unshift(novaCompra);
-    
-   
-    localStorage.setItem("historicoCompras", JSON.stringify(historicoAtual));
-    // ---------------------------------
+            btnFinalizar.addEventListener("click", async () => {
+                const carrinho = CarrinhoRepository.buscar();
+                if (carrinho.obterItens().length === 0) { 
+                    alert("Seu carrinho está vazio!"); 
+                    return; 
+                }
+                
+// pega o email do usuário ativo para associar à compra no banco
+                const dadosUsuario = localStorage.getItem("usuarioLivraria");
+                const emailUsuario = dadosUsuario ? JSON.parse(dadosUsuario).email : "anonimo@teste.com";
 
-    alert("Compra simulada com sucesso! Ela foi salva no seu histórico.");
-    CarrinhoRepository.limpar();
-    window.location.href = "historico.html"; 
+                // estrutura a lista de livros comprados de acordo com as colunas da tabela
+                const comprasParaSalvar = carrinho.obterItens().map(item => ({
+                    usuario_email: emailUsuario,
+                    titulo: item.titulo,
+                    formato: item.formato,
+                    preco: item.preco,
+                    cep: item.cep || "" 
+                }));
+
+                try {
+                    // CORREÇÃO AQUI: Mudamos de 'supabase.from' para 'supabaseClient.from'
+                    const { data, error } = await supabaseClient
+                        .from('historico_compras')
+                        .insert(comprasParaSalvar);
+
+                    if (error) {
+                        console.error("Erro do Supabase:", error);
+                        alert("Houve um erro ao salvar a compra no banco de dados.");
+                        return;
+                    }
+
+                    alert("Compra realizada com sucesso e salva no Supabase!");
+                    CarrinhoRepository.limpar();
+                    window.location.href = "historico.html"; 
+
+                } catch (erroConexao) {
+                    console.error("Erro na requisição:", erroConexao);
+                    alert("Não foi possível conectar ao servidor do banco de dados.");
+                }
             });
         }
     }
 
-    // logica de cadastro login etc
+    // cadastro, login etc. 
     const formCadastro = document.getElementById("form-cadastro");
     if (formCadastro) {
         formCadastro.addEventListener("submit", (event) => {
