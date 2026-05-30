@@ -1,3 +1,9 @@
+// configuração inicial do Supabase no index.js
+const SUPABASE_URL = "URL_AQUI";
+const SUPABASE_KEY = "CHAVE_ANON_AQUI";
+
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 document.addEventListener("DOMContentLoaded", () => {
 
     // CAMADA DE DOMÍNIO 
@@ -244,7 +250,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     tituloSecao.innerText = `Resultados para: "${termo}"`;
                 }
 
-                // localiza e oculta o h2 estático de clássicos e suas bordas/linhas horizontais (<hr>)
+                // localiza e oculta o h2 estático de clássicos e suas bordas/linhas horizontais <hr>
                 const todosH2 = document.querySelectorAll("h2");
                 todosH2.forEach(h2 => {
                     if (h2.innerText.includes("Clássicos Brasileiros")) {
@@ -274,7 +280,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // renderização do pagamento: (pagamento.html) ---
+    // renderização do pagamento: (pagamento.html)
     const listaCarrinhoContainer = document.getElementById("lista-carrinho");
     if (listaCarrinhoContainer) {
         
@@ -337,22 +343,19 @@ document.addEventListener("DOMContentLoaded", () => {
         return; 
     }
     
-    // --- NOVA LÓGICA DE HISTÓRICO ---
-    // 1. Pega o histórico que já existe ou cria um array vazio se for a primeira compra
+    // LÓGICA DE HISTÓRICO ---
     const historicoAtual = JSON.parse(localStorage.getItem("historicoCompras")) || [];
     
-    // 2. Cria o objeto da nova compra com os itens atuais e a data
     const novaCompra = {
-        id: Date.now(), // Gera um ID único baseado no milissegundo atual
+        id: Date.now(), 
         data: new Date().toLocaleDateString("pt-BR"),
         total: `R$ ${carrinho.calcularTotal().toFixed(2).replace(".", ",")}`,
         itens: carrinho.obterItens()
     };
     
-    // 3. Adiciona a nova compra no início do histórico (para a mais recente aparecer primeiro)
     historicoAtual.unshift(novaCompra);
     
-    // 4. Salva de volta no LocalStorage
+   
     localStorage.setItem("historicoCompras", JSON.stringify(historicoAtual));
     // ---------------------------------
 

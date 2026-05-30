@@ -1,3 +1,9 @@
+// configuração inicial do Supabase no historico.js
+const SUPABASE_URL = "URL_AQUI";
+const SUPABASE_KEY = "CHAVE_ANON_AQUI";
+
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 document.addEventListener("DOMContentLoaded", () => {
     const listaHistorico = document.getElementById("lista-historico");
     if (!listaHistorico) return;
